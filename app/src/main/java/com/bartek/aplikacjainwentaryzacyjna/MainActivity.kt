@@ -168,7 +168,7 @@ class MainActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            infoTextView.text = "Błąd przy wczytywaniu pliku: ${e.message}"
+            infoTextView.text = "Bład przy wczytywaniu pliku: ${e.message}"
         }
     }
 }
