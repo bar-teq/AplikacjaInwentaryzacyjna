@@ -9,11 +9,12 @@ import androidx.recyclerview.widget.RecyclerView
 
 class MachineAdapter(
     private var machines: List<Machine>,
-    private val presentMachinesIds: MutableSet<String>,
+    private val presentMachinesIds: Set<String>,
     private val onMachineClick: (Machine) -> Unit
 ) : RecyclerView.Adapter<MachineAdapter.MachineViewHolder>() {
 
-    class MachineViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+    inner class MachineViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val idTextView: TextView = itemView.findViewById(R.id.machine_id)
         val nameTextView: TextView = itemView.findViewById(R.id.machine_name)
         val statusTextView: TextView = itemView.findViewById(R.id.machine_status)
     }
@@ -26,15 +27,15 @@ class MachineAdapter(
 
     override fun onBindViewHolder(holder: MachineViewHolder, position: Int) {
         val machine = machines[position]
-        holder.nameTextView.text = "${machine.id} - ${machine.name}"
-        holder.statusTextView.text = "Status: ${machine.status}"
+        holder.idTextView.text = machine.id
+        holder.nameTextView.text = machine.name
+        holder.statusTextView.text = machine.status
 
-        // --- Tło natychmiast, bez animacji ---
-        if (presentMachinesIds.contains(machine.id)) {
-            holder.itemView.setBackgroundColor(Color.parseColor("#A8E6A3")) // zielone
-        } else {
-            holder.itemView.setBackgroundColor(Color.WHITE)
-        }
+        // Kolorowanie tła: zielone jeśli maszyna jest obecna
+        holder.itemView.setBackgroundColor(
+            if (presentMachinesIds.contains(machine.id)) Color.parseColor("#A8E6A3") // jasna zieleń
+            else Color.WHITE
+        )
 
         holder.itemView.setOnClickListener {
             onMachineClick(machine)

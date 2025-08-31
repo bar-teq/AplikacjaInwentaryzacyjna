@@ -7,13 +7,16 @@ plugins {
 android {
     namespace = "com.bartek.aplikacjainwentaryzacyjna"
     compileSdk = 36
-
+    buildFeatures {
+        buildConfig = true // Ensure this is true or add it if missing
+        compose = true
+    }
     defaultConfig {
         applicationId = "com.bartek.aplikacjainwentaryzacyjna"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "1.0"
+        versionName = "v1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -70,4 +73,6 @@ dependencies {
     // Zależności do parsowania JSON (Jackson)
     implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.15.2")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
 }

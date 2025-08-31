@@ -6,7 +6,9 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import org.jsoup.Jsoup
@@ -14,7 +16,7 @@ import org.jsoup.Jsoup
 class MainActivity : AppCompatActivity() {
 
     private lateinit var searchInput: EditText
-    private lateinit var searchButton: Button
+    private lateinit var menuButton: Button
     private lateinit var statusButton: Button
     private lateinit var missingButton: Button
     private lateinit var selectFileButton: Button
@@ -25,12 +27,11 @@ class MainActivity : AppCompatActivity() {
     private var allMachines: MutableList<Machine> = mutableListOf()
     private var presentMachinesIds: MutableSet<String> = mutableSetOf()
     private var currentFilter: String = ""
+    private var isShowingMissing = false
 
     private val filePicker =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
-            uri?.let {
-                loadMachinesFromHtml(uri)
-            }
+            uri?.let { loadMachinesFromHtml(it) }
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,48 +39,70 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         searchInput = findViewById(R.id.search_input)
-        searchButton = findViewById(R.id.search_button)
+        menuButton = findViewById(R.id.search_button) // zmieniony tekst na "Menu główne"
         statusButton = findViewById(R.id.status_button)
         missingButton = findViewById(R.id.missing_button)
         selectFileButton = findViewById(R.id.select_file_button)
         recyclerView = findViewById(R.id.recycler_view)
         infoTextView = findViewById(R.id.info_text_view)
 
-        machineAdapter = MachineAdapter(allMachines, presentMachinesIds) { machine ->
-            // kliknięcie nie resetuje filtra
-            if (presentMachinesIds.contains(machine.id)) {
-                presentMachinesIds.remove(machine.id)
-            } else {
-                presentMachinesIds.add(machine.id)
-            }
-            filterMachines(currentFilter)
-        }
+        val layoutManager = LinearLayoutManager(this)
+        layoutManager.stackFromEnd = true
+        layoutManager.reverseLayout = false
+        recyclerView.layoutManager = layoutManager
+        recyclerView.addItemDecoration(DividerItemDecoration(this, layoutManager.orientation))
 
-        recyclerView.layoutManager = LinearLayoutManager(this)
+        machineAdapter = MachineAdapter(allMachines, presentMachinesIds) { machine ->
+            if (presentMachinesIds.contains(machine.id)) presentMachinesIds.remove(machine.id)
+            else presentMachinesIds.add(machine.id)
+            if (!isShowingMissing) filterMachines(currentFilter)
+            else showMissingMachines() // odśwież listę brakujących
+        }
         recyclerView.adapter = machineAdapter
 
-        searchButton.setOnClickListener {
-            val searchTerm = searchInput.text.toString().trim()
-            if (searchTerm.isNotEmpty()) searchForMachine(searchTerm)
+        menuButton.setOnClickListener {
+            // Zawsze powrót do głównej listy
+            isShowingMissing = false
+            menuButton.setBackgroundColor(0xFFA8E6A3.toInt()) // zielony
+            missingButton.setBackgroundColor(0xFFFFFFFF.toInt()) // biały
+            filterMachines(currentFilter)
+            infoTextView.text = "Lista maszyn"
         }
 
         statusButton.setOnClickListener {
-            val statusText = if (presentMachinesIds.isEmpty()) {
-                "Nie oznaczono jeszcze żadnych maszyn."
-            } else {
-                "Obecne maszyny: ${presentMachinesIds.joinToString(", ")}"
-            }
-            infoTextView.text = statusText
+            val statuses = allMachines.map { it.status }.distinct()
+            val statusArray = statuses.toTypedArray()
+            val checkedItems = BooleanArray(statusArray.size) { false }
+
+            AlertDialog.Builder(this)
+                .setTitle("Wybierz statusy")
+                .setMultiChoiceItems(statusArray, checkedItems) { _, which, isChecked ->
+                    checkedItems[which] = isChecked
+                }
+                .setPositiveButton("OK") { _, _ ->
+                    allMachines.forEach { machine ->
+                        val index = statuses.indexOf(machine.status)
+                        if (index >= 0 && checkedItems[index]) {
+                            presentMachinesIds.add(machine.id)
+                        }
+                    }
+                    if (!isShowingMissing) filterMachines(currentFilter)
+                    else showMissingMachines()
+                    infoTextView.text = "Zaznaczono maszyny dla wybranych statusów."
+                }
+                .setNegativeButton("Anuluj", null)
+                .show()
         }
 
         missingButton.setOnClickListener {
-            val missing = allMachines.filter { !presentMachinesIds.contains(it.id) }
-            val text = if (missing.isEmpty()) {
-                "Brakujące: brak"
-            } else {
-                "Brakujące maszyny: ${missing.joinToString { it.id }}"
-            }
-            infoTextView.text = text
+            isShowingMissing = true
+            missingButton.setBackgroundColor(0xFFFFA3A3.toInt()) // czerwony
+            menuButton.setBackgroundColor(0xFFFFFFFF.toInt()) // biały
+            showMissingMachines()
+        }
+
+        selectFileButton.setOnClickListener {
+            filePicker.launch(arrayOf("*/*"))
         }
 
         val numberButtons = listOf(
@@ -89,50 +112,48 @@ class MainActivity : AppCompatActivity() {
 
         for (id in numberButtons) {
             findViewById<Button>(id).setOnClickListener {
-                val current = searchInput.text.toString()
                 val digit = (it as Button).text.toString()
-                val newInput = current + digit
-                searchInput.setText(newInput)
-                currentFilter = newInput
-                filterMachines(currentFilter)
+                currentFilter += digit
+                searchInput.setText(currentFilter)
+                if (!isShowingMissing) filterMachines(currentFilter)
+                else showMissingMachines()
             }
         }
 
         findViewById<Button>(R.id.btn_clear).setOnClickListener {
-            searchInput.setText("")
             currentFilter = ""
-            filterMachines(currentFilter)
+            searchInput.setText("")
+            if (!isShowingMissing) filterMachines(currentFilter)
+            else showMissingMachines()
         }
 
         findViewById<Button>(R.id.btn_ok).setOnClickListener {
-            val searchTerm = searchInput.text.toString().trim()
-            if (searchTerm.isNotEmpty()) searchForMachine(searchTerm)
-        }
-
-        selectFileButton.setOnClickListener {
-            filePicker.launch(arrayOf("*/*"))
+            // dodatkowa akcja OK jeśli potrzeba
         }
     }
 
     private fun filterMachines(query: String) {
-        val filtered = if (query.isEmpty()) allMachines else allMachines.filter { it.id.contains(query) }
+        val filtered = if (query.isEmpty()) allMachines
+        else allMachines.filter { it.id.contains(query) }
+
         machineAdapter.updateData(filtered)
     }
 
-    private fun searchForMachine(searchTerm: String) {
-        val found = allMachines.find { it.id == searchTerm }
-        if (found != null) {
-            if (presentMachinesIds.contains(found.id)) {
-                presentMachinesIds.remove(found.id)
-                infoTextView.text = "Maszyna ${found.id} oznaczona jako brakująca."
-            } else {
-                presentMachinesIds.add(found.id)
-                infoTextView.text = "Maszyna ${found.id} oznaczona jako obecna."
-            }
-            filterMachines(currentFilter) // nie resetujemy filtra
-        } else {
-            infoTextView.text = "Nie znaleziono maszyny o ID: $searchTerm"
+    private fun showMissingMachines() {
+        val missingMachines = allMachines.filter { !presentMachinesIds.contains(it.id) }
+
+        // deklarujemy adapter jako zmienną mutable
+        var missingAdapter: MachineAdapter? = null
+
+        missingAdapter = MachineAdapter(missingMachines, presentMachinesIds) { machine ->
+            presentMachinesIds.add(machine.id)
+            val updatedMissing = missingMachines.filter { it.id != machine.id }
+            missingAdapter?.updateData(updatedMissing)
+            infoTextView.text = "Maszyna ${machine.id} oznaczona jako obecna"
         }
+
+        recyclerView.adapter = missingAdapter
+        infoTextView.text = "Lista brakujących maszyn"
     }
 
     private fun loadMachinesFromHtml(uri: Uri) {
@@ -144,7 +165,6 @@ class MainActivity : AppCompatActivity() {
                     infoTextView.text = "Nie znaleziono tabeli w pliku."
                     return
                 }
-
                 val newMachines = mutableListOf<Machine>()
                 val rows = table.select("tr")
                 for (i in 2 until rows.size) {
@@ -152,23 +172,19 @@ class MainActivity : AppCompatActivity() {
                     if (cols.size >= 8) {
                         val id = cols[2].text().trim()
                         val name = cols[3].text().trim()
-                        val category = cols[1].text().trim()
                         val status = cols[7].text().trim()
-                        if (id.isNotEmpty() && name.isNotEmpty()) {
-                            newMachines.add(Machine(id, name, category, status))
-                        }
+                        newMachines.add(Machine(id, name, status))
                     }
                 }
-
                 allMachines.clear()
                 allMachines.addAll(newMachines)
+                presentMachinesIds.clear()
                 currentFilter = ""
-                filterMachines(currentFilter) // pokazuje pełną listę od razu
-                infoTextView.text = "Wczytano ${allMachines.size} maszyn z wybranego pliku."
+                searchInput.setText("")
+                filterMachines(currentFilter)
             }
         } catch (e: Exception) {
-            e.printStackTrace()
-            infoTextView.text = "Bład przy wczytywaniu pliku: ${e.message}"
+            infoTextView.text = "Błąd wczytywania pliku: ${e.message}"
         }
     }
 }

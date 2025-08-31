@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -5,19 +6,22 @@
     android:padding="8dp">
 
     <TextView
+        android:id="@+id/machine_id"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ID"
+        android:textStyle="bold"/>
+
+    <TextView
         android:id="@+id/machine_name"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Nazwa maszyny"
-        android:textSize="16sp"
-        android:textStyle="bold" />
+        android:text="Nazwa maszyny" />
 
     <TextView
         android:id="@+id/machine_status"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Status"
-        android:textSize="14sp"
-        android:textColor="#FF5555" />
+        android:text="Status" />
 
 </LinearLayout>
