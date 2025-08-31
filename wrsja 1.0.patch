@@ -1,0 +1,33 @@
+Index: app/src/main/java/com/bartek/aplikacjainwentaryzacyjna/MainActivity.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/src/main/java/com/bartek/aplikacjainwentaryzacyjna/MainActivity.kt b/app/src/main/java/com/bartek/aplikacjainwentaryzacyjna/MainActivity.kt
+--- a/app/src/main/java/com/bartek/aplikacjainwentaryzacyjna/MainActivity.kt
++++ b/app/src/main/java/com/bartek/aplikacjainwentaryzacyjna/MainActivity.kt	(date 1756625765396)
+@@ -1,6 +1,5 @@
+ package com.bartek.aplikacjainwentaryzacyjna
+ 
+-import android.content.Context
+ import android.net.Uri
+ import android.os.Bundle
+ import android.widget.Button
+@@ -11,7 +10,6 @@
+ import androidx.recyclerview.widget.LinearLayoutManager
+ import androidx.recyclerview.widget.RecyclerView
+ import org.apache.poi.ss.usermodel.WorkbookFactory
+-import java.io.InputStream
+ 
+ class MainActivity : AppCompatActivity() {
+ 
+@@ -126,8 +124,7 @@
+     // --- Wczytanie maszyn z wybranego pliku Excel ---
+     private fun loadMachinesFromExcelUri(uri: Uri) {
+         try {
+-            val inputStream: InputStream? = contentResolver.openInputStream(uri)
+-            inputStream?.let { stream ->
++            contentResolver.openInputStream(uri)?.use { stream ->
+                 val workbook = WorkbookFactory.create(stream)
+                 val sheet = workbook.getSheetAt(0)
+                 val newMachines = mutableListOf<Machine>()
